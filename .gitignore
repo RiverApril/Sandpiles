@@ -1,0 +1,8 @@
+# Executable:
+sandpiles
+
+# Generated images:
+sand_*.bmp
+
+# Excel
+*.xlsx
