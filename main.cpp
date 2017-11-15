@@ -30,8 +30,10 @@ struct __attribute__ ((packed)) BitmapHeader {
     uint32_t importantColors = 0;
 };
 
-int main(int argc, char *argv[]){
+void generate(unsigned long totalToDrop, size_t radius);
 
+int main(int argc, char *argv[]){
+    
     unsigned long totalToDrop;
     size_t radius;
 
@@ -62,6 +64,13 @@ int main(int argc, char *argv[]){
         radius = stoi(radc);
     }
 
+    generate(totalToDrop, radius);
+
+    return 0;
+}
+
+void generate(unsigned long totalToDrop, size_t radius){
+
     clock_t begin = clock();
 
     size_t size = radius*2+3;
@@ -70,11 +79,11 @@ int main(int argc, char *argv[]){
 
     unsigned long toDrop = totalToDrop;
 
-    byte gridNow[size][size];
-    byte gridNext[size][size];
-
-
+    byte **gridNow = new byte*[size];
+    byte **gridNext = new byte*[size];
     for(size_t x = 0; x < size; x++){
+        gridNow[x] = new byte[size];
+        gridNext[x] = new byte[size];
         for(size_t y = 0; y < size; y++){
             gridNow[x][y] = 0;
             gridNext[x][y] = 0;
@@ -127,6 +136,7 @@ int main(int argc, char *argv[]){
             }
         }
         if(expand){
+            //printf("Current Radius: %d\n", currentRadius);
             currentRadius++;
             edge -= 1;
             if(edge < 1){
@@ -201,6 +211,14 @@ int main(int argc, char *argv[]){
 
     free(bmpData);
 
+    for(size_t i = size; i > 0; ){
+        delete[] gridNow[--i];
+        delete[] gridNext[i];
+    }
+
+    delete[] gridNow;
+    delete[] gridNext;
+
     printf("Bitmap %s created\n", fileName);
     
     clock_t end = clock();
@@ -213,6 +231,4 @@ int main(int argc, char *argv[]){
     }else{
         printf("Total elapsed time: %f seconds\n", elapsed_secs);
     }
-
-    return 0;
 }
