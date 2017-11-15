@@ -9,6 +9,7 @@ using namespace std;
 typedef unsigned char byte;
 
 #define min(a, b) a<b?a:b
+#define max(a, b) a>b?a:b
 
 struct __attribute__ ((packed)) BitmapHeader {
     uint16_t type = 19778;
@@ -79,79 +80,58 @@ void generate(unsigned long totalToDrop, size_t radius){
 
     unsigned long toDrop = totalToDrop;
 
-    byte **gridNow = new byte*[size];
-    byte **gridNext = new byte*[size];
+    unsigned long **gridNow = new unsigned long*[size];
     for(size_t x = 0; x < size; x++){
-        gridNow[x] = new byte[size];
-        gridNext[x] = new byte[size];
+        gridNow[x] = new unsigned long[size];
         for(size_t y = 0; y < size; y++){
             gridNow[x][y] = 0;
-            gridNext[x][y] = 0;
         }
     }
     
     printf("Dropping %lu sand...\n", totalToDrop);
 
-    byte a, b, c, d, dropping;
+    unsigned long topple;
 
     unsigned long t;
 
     bool stillGoing = true;
-    bool expand = false;
 
     size_t dropX = size/2;
     size_t dropY = size/2;
 
-    int currentRadius = 1;
-    int edge = (size/2)-2;
+    gridNow[dropX][dropY] = totalToDrop;
+
+    size_t minX = dropX;
+    size_t maxX = dropX;
+    size_t minY = dropY;
+    size_t maxY = dropY;
 
     for(t = 0; stillGoing; t++){
         stillGoing = false;
-
-        if(toDrop > 0){
-            dropping = min(255 - gridNow[dropX][dropY], toDrop);
-            toDrop -= dropping;
-            //printf("Dropping: %d\n", (int)dropping);
-            gridNow[dropX][dropY] = gridNow[dropX][dropY] + dropping;
-            stillGoing = true;
-            if(toDrop == 0){
-                printf("Waiting to settle...\n");
-            }
-        }
-
-        for(size_t x = edge; x < size-edge; x++){
-            for(size_t y = edge; y < size-edge; y++){
-                gridNext[x][y] = gridNow[x][y]%4 + gridNow[x-1][y]/4 + gridNow[x][y-1]/4 + gridNow[x+1][y]/4 + gridNow[x][y+1]/4;
-            }
-        }
-        for(size_t x = edge; x < size-edge; x++){
-            for(size_t y = edge; y < size-edge; y++){
-                if(gridNow[x][y] != gridNext[x][y]){
+        for(size_t x = minX; x <= maxX; x++){
+            for(size_t y = minY; y <= maxY; y++){
+                if(gridNow[x][y] >= 4){
+                    topple = gridNow[x][y]/4;
+                    gridNow[x][y] -= topple*4;
+                    gridNow[x-1][y] += topple;
+                    gridNow[x+1][y] += topple;
+                    gridNow[x][y-1] += topple;
+                    gridNow[x][y+1] += topple;
+                    minX = min(minX, x-1);
+                    minY = min(minY, y-1);
+                    maxX = max(maxX, x+1);
+                    maxY = max(maxY, y+1);
                     stillGoing = true;
-                    if(!expand && (x == dropX-currentRadius || x == dropX+currentRadius || y == dropY-currentRadius || y == dropY+currentRadius)){
-                        expand = true;
-                    }
-                    gridNow[x][y] = gridNext[x][y];
                 }
             }
         }
-        if(expand){
-            //printf("Current Radius: %d\n", currentRadius);
-            currentRadius++;
-            edge -= 1;
-            if(edge < 1){
-                edge = 1;
-            }
-            expand = false;
-        }
+        
     }
 
     printf("Ticks: %lu\n", t);
 
-    size_t actualRadius = currentRadius-1;
+    size_t actualRadius = ((maxX-minX))/2;
     size_t actualSize = actualRadius*2+1;
-
-    edge = (size-actualSize)/2;
     
     size_t imgSize = actualSize*actualSize*4;
     
@@ -173,8 +153,8 @@ void generate(unsigned long totalToDrop, size_t radius){
 
     uint8_t* bmpData = (uint8_t*)malloc(imgSize);
     size_t i = 0;
-    for(size_t y = edge; y < size-edge; y++){
-        for(size_t x = edge; x < size-edge; x++){
+    for(size_t y = minY; y <= maxY; y++){
+        for(size_t x = minX; x <= maxX; x++){
             bmpData[i++] = color[gridNow[x][y]][2];
             bmpData[i++] = color[gridNow[x][y]][1];
             bmpData[i++] = color[gridNow[x][y]][0];
@@ -213,11 +193,9 @@ void generate(unsigned long totalToDrop, size_t radius){
 
     for(size_t i = size; i > 0; ){
         delete[] gridNow[--i];
-        delete[] gridNext[i];
     }
 
     delete[] gridNow;
-    delete[] gridNext;
 
     printf("Bitmap %s created\n", fileName);
     
