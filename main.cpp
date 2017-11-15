@@ -6,10 +6,14 @@
 
 using namespace std;
 
-typedef unsigned char byte;
-
 #define min(a, b) a<b?a:b
 #define max(a, b) a>b?a:b
+
+#ifdef SAND_8
+    #define QTY 8
+#else
+    #define QTY 4
+#endif
 
 struct __attribute__ ((packed)) BitmapHeader {
     uint16_t type = 19778;
@@ -31,68 +35,116 @@ struct __attribute__ ((packed)) BitmapHeader {
     uint32_t importantColors = 0;
 };
 
-void generate(unsigned long totalToDrop, size_t radius);
+const unsigned char color[2][8][3] = {{
+    {0x00, 0x00, 0x00}, 
+    {0xFF, 0xFF, 0x00}, 
+    {0x00, 0x00, 0xFF}, 
+    {0xFF, 0x00, 0x00}, 
+    {0x00, 0xFF, 0x00}, 
+    {0x00, 0xFF, 0xFF}, 
+    {0xFF, 0x00, 0xFF}, 
+    {0x80, 0x00, 0xFF}
+},{
+    {0x00, 0x00, 0x00}, 
+    {0xFF, 0x00, 0x00}, 
+    {0xFF, 0xFF, 0x00}, 
+    {0x00, 0xFF, 0x00}, 
+    {0x00, 0xFF, 0xFF}, 
+    {0x00, 0x00, 0xFF}, 
+    {0x80, 0x00, 0xFF}, 
+    {0xFF, 0x00, 0xFF}
+}};
+
+void generate1(unsigned long long totalToDrop, size_t radius, int colorIndex);
+
+template<class T>
+void generate2(T totalToDrop, size_t radius, int colorIndex);
 
 int main(int argc, char *argv[]){
     
-    unsigned long totalToDrop;
+    unsigned long long totalToDrop;
     size_t radius;
 
-    if(argc >= 3){
-        if(argv[1][0] == '2' && argv[1][1] == '^'){
-            totalToDrop = 1 << stoi(argv[1]+2);
-        }else{
-            totalToDrop = stoi(argv[1]);
-        }
-        radius = stoi(argv[2]);
-    } else {
+    string qty;
+    string rad;
+    string col;
 
-        string qty, rad;
-
+    if(argc >= 2){
+        qty = argv[1];
+    }else{
         printf("Enter amount of sand to drop (as \"num\" or \"2^num\"): ");
         cin >> qty;
-        printf("Enter overestimated radius (sans center): ");
-        cin >> rad;
-
-        const char* qtyc = qty.c_str();
-        const char* radc = rad.c_str();
-        
-        if(qtyc[0] == '2' && qtyc[1] == '^'){
-            totalToDrop = 1 << stoi(qtyc+2);
-        }else{
-            totalToDrop = stoi(qtyc);
-        }
-        radius = stoi(radc);
     }
 
-    generate(totalToDrop, radius);
+    if(argc >= 3){
+        rad = argv[2];
+    }else{
+        printf("Enter overestimated radius (sans center): ");
+        cin >> rad;
+    }
+
+    if(argc >= 4){
+        col = argv[3];
+    }else{
+        col = "0";
+    }
+
+    const char* qtyc = qty.c_str();
+    const char* radc = rad.c_str();
+    
+    if(qtyc[0] == '2' && qtyc[1] == '^'){
+        totalToDrop = 1 << stoull(qtyc+2);
+    }else{
+        totalToDrop = stoull(qtyc);
+    }
+    radius = stoul(radc);
+
+    int colorIndex = stoi(col);
+
+    generate1(totalToDrop, radius, colorIndex);
 
     return 0;
 }
 
-void generate(unsigned long totalToDrop, size_t radius){
+void generate1(unsigned long long totalToDrop, size_t radius, int colorIndex){
+    if(totalToDrop <= UCHAR_MAX){
+        printf("Allocating using u-char\n");
+        generate2<unsigned char>((unsigned char)totalToDrop, radius, colorIndex);
+    }else if(totalToDrop <= USHRT_MAX){
+        printf("Allocating using u-short\n");
+        generate2<unsigned short>((unsigned short)totalToDrop, radius, colorIndex);
+    }else if(totalToDrop <= UINT_MAX){
+        printf("Allocating using u-int\n");
+        generate2<unsigned int>((unsigned int)totalToDrop, radius, colorIndex);
+    }else if(totalToDrop <= ULONG_MAX){
+        printf("Allocating using u-long\n");
+        generate2<unsigned long>((unsigned long)totalToDrop, radius, colorIndex);
+    }else if(totalToDrop <= ULLONG_MAX){
+        printf("Allocating using u-llong\n");
+        generate2<unsigned long long>((unsigned long long)totalToDrop, radius, colorIndex);
+    }
+}
+
+template<class T>
+void generate2(T totalToDrop, size_t radius, int colorIndex){
 
     clock_t begin = clock();
 
     size_t size = radius*2+3;
-
-    byte color[4][3] = {{0x00, 0x00, 0x00}, {0xFF, 0xFF, 0x00}, {0x00, 0x00, 0xFF}, {0xFF, 0x00, 0x00}};
-
-    unsigned long toDrop = totalToDrop;
-
-    unsigned long **gridNow = new unsigned long*[size];
+    
+    T **gridNow = new T*[size];
     for(size_t x = 0; x < size; x++){
-        gridNow[x] = new unsigned long[size];
+        gridNow[x] = new T[size];
         for(size_t y = 0; y < size; y++){
             gridNow[x][y] = 0;
         }
     }
     
-    printf("Dropping %lu sand...\n", totalToDrop);
+    printf("Dropping %llu sand...\n", (unsigned long long)totalToDrop);
 
-    unsigned long topple;
+    T topple;
 
-    unsigned long t;
+    unsigned long long t;
 
     bool stillGoing = true;
 
@@ -110,13 +162,20 @@ void generate(unsigned long totalToDrop, size_t radius){
         stillGoing = false;
         for(size_t x = minX; x <= maxX; x++){
             for(size_t y = minY; y <= maxY; y++){
-                if(gridNow[x][y] >= 4){
-                    topple = gridNow[x][y]/4;
-                    gridNow[x][y] -= topple*4;
+
+                if(gridNow[x][y] >= QTY){
+                    topple = gridNow[x][y]/QTY;
+                    gridNow[x][y] -= topple*QTY;
                     gridNow[x-1][y] += topple;
                     gridNow[x+1][y] += topple;
                     gridNow[x][y-1] += topple;
                     gridNow[x][y+1] += topple;
+                    #ifdef SAND_8
+                        gridNow[x-1][y-1] += topple;
+                        gridNow[x+1][y+1] += topple;
+                        gridNow[x+1][y-1] += topple;
+                        gridNow[x-1][y+1] += topple;
+                    #endif
                     minX = min(minX, x-1);
                     minY = min(minY, y-1);
                     maxX = max(maxX, x+1);
@@ -125,10 +184,9 @@ void generate(unsigned long totalToDrop, size_t radius){
                 }
             }
         }
-        
     }
 
-    printf("Ticks: %lu\n", t);
+    printf("Ticks: %llu\n", t);
 
     size_t actualRadius = ((maxX-minX))/2;
     size_t actualSize = actualRadius*2+1;
@@ -146,27 +204,26 @@ void generate(unsigned long totalToDrop, size_t radius){
     double greedyArea = 0;
     double filledArea = 0;
     double total = 0;
-    double totalEmpty = 0;
-    double totalOne = 0;
-    double totalTwo = 0;
-    double totalThree = 0;
+    double totals[QTY];
+    for(int j = 0; j < QTY; j++){
+        totals[j] = 0;
+    }
 
     uint8_t* bmpData = (uint8_t*)malloc(imgSize);
     size_t i = 0;
     for(size_t y = minY; y <= maxY; y++){
         for(size_t x = minX; x <= maxX; x++){
-            bmpData[i++] = color[gridNow[x][y]][2];
-            bmpData[i++] = color[gridNow[x][y]][1];
-            bmpData[i++] = color[gridNow[x][y]][0];
+            bmpData[i++] = color[colorIndex][gridNow[x][y]][2];
+            bmpData[i++] = color[colorIndex][gridNow[x][y]][1];
+            bmpData[i++] = color[colorIndex][gridNow[x][y]][0];
             bmpData[i++] = 0;
             filledArea += (gridNow[x][y] > 0);
             if(gridNow[x][y] > 0 || ((gridNow[x-1][y] > 0) + (gridNow[x+1][y] > 0) + (gridNow[x][y-1] > 0) + (gridNow[x][y+1] > 0)) == 4 ){
                 greedyArea++;
                 total += gridNow[x][y];
-                totalEmpty += (gridNow[x][y] == 0);
-                totalOne += (gridNow[x][y] == 1);
-                totalTwo += (gridNow[x][y] == 2);
-                totalThree += (gridNow[x][y] == 3);
+                for(int j = 0; j < QTY; j++){
+                    totals[j] += (gridNow[x][y] == j);
+                }
             }
         }
     }
@@ -177,14 +234,18 @@ void generate(unsigned long totalToDrop, size_t radius){
     printf("(Enclosed Area)/(Radius^2): %f\n", greedyArea / (calcRadius*calcRadius));
     printf("(Non Empty Area)/(Radius^2): %f\n", filledArea / (calcRadius*calcRadius));
     printf("Mean: %f\n", total/greedyArea);
-    printf("0: %f%%\n", totalEmpty/greedyArea*100);
-    printf("1: %f%%\n", totalOne/greedyArea*100);
-    printf("2: %f%%\n", totalTwo/greedyArea*100);
-    printf("3: %f%%\n", totalThree/greedyArea*100);
+    for(int j = 0; j < QTY; j++){
+        printf("%d: %f%%\n", j, totals[j]/greedyArea*100);
+    }
 
 
     ofstream file;
-    const char* fileName = ("sand_"+to_string(totalToDrop)+".bmp").c_str();
+    #ifdef SAND_8
+        #define PREFIX "sand8_"
+    #else
+        #define PREFIX "sand_"
+    #endif
+    const char* fileName = (PREFIX+to_string(totalToDrop)+".bmp").c_str();
     file.open(fileName);
     file.write((char*)&bmpHeader, sizeof(bmpHeader));
     file.write((char*)bmpData, imgSize);

@@ -1,8 +1,10 @@
 # Executable:
 sandpiles
+sandpiles8
 
 # Generated images:
 sand_*.bmp
+sand8_*.bmp
 
 # Excel
 *.xlsx
