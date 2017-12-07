@@ -1,6 +1,9 @@
 # Executable:
 sandpiles
 sandpiles8
+sandpiles3d
+sandpiles4d
+sandpilesnd
 
 # Generated images:
 sand_*.bmp

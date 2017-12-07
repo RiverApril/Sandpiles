@@ -9,11 +9,7 @@ using namespace std;
 #define min(a, b) a<b?a:b
 #define max(a, b) a>b?a:b
 
-#ifdef SAND_8
-    #define QTY 8
-#else
-    #define QTY 4
-#endif
+#define QTY 8
 
 struct __attribute__ ((packed)) BitmapHeader {
     uint16_t type = 19778;
@@ -132,11 +128,17 @@ void generate2(T totalToDrop, size_t radius, int colorIndex){
 
     size_t size = radius*2+3;
     
-    T **gridNow = new T*[size];
+    T ****gridNow = new T***[size];
     for(size_t x = 0; x < size; x++){
-        gridNow[x] = new T[size];
+        gridNow[x] = new T**[size];
         for(size_t y = 0; y < size; y++){
-            gridNow[x][y] = 0;
+            gridNow[x][y] = new T*[size];
+            for(size_t z = 0; z < size; z++){
+                gridNow[x][y][z] = new T[size];
+                for(size_t w = 0; w < size; w++){
+                    gridNow[x][y][z][w] = 0;
+                }
+            }
         }
     }
     
@@ -150,37 +152,51 @@ void generate2(T totalToDrop, size_t radius, int colorIndex){
 
     size_t dropX = size/2;
     size_t dropY = size/2;
+    size_t dropZ = size/2;
+    size_t dropW = size/2;
 
-    gridNow[dropX][dropY] = totalToDrop;
+    gridNow[dropX][dropY][dropZ][dropW] = totalToDrop;
 
     size_t minX = dropX;
     size_t maxX = dropX;
     size_t minY = dropY;
     size_t maxY = dropY;
+    size_t minZ = dropZ;
+    size_t maxZ = dropZ;
+    size_t minW = dropW;
+    size_t maxW = dropW;
 
     for(t = 0; stillGoing; t++){
         stillGoing = false;
         for(size_t x = minX; x <= maxX; x++){
             for(size_t y = minY; y <= maxY; y++){
+                for(size_t z = minZ; z <= maxZ; z++){
+                    for(size_t w = minW; w <= maxW; w++){
 
-                if(gridNow[x][y] >= QTY){
-                    topple = gridNow[x][y]/QTY;
-                    gridNow[x][y] -= topple*QTY;
-                    gridNow[x-1][y] += topple;
-                    gridNow[x+1][y] += topple;
-                    gridNow[x][y-1] += topple;
-                    gridNow[x][y+1] += topple;
-                    #ifdef SAND_8
-                        gridNow[x-1][y-1] += topple;
-                        gridNow[x+1][y+1] += topple;
-                        gridNow[x+1][y-1] += topple;
-                        gridNow[x-1][y+1] += topple;
-                    #endif
-                    minX = min(minX, x-1);
-                    minY = min(minY, y-1);
-                    maxX = max(maxX, x+1);
-                    maxY = max(maxY, y+1);
-                    stillGoing = true;
+                        if(gridNow[x][y][z][w] >= QTY){
+                            topple = gridNow[x][y][z][w]/QTY;
+                            gridNow[x][y][z][w] -= topple*QTY;
+                            gridNow[x-1][y][z][w] += topple;
+                            gridNow[x+1][y][z][w] += topple;
+                            gridNow[x][y-1][z][w] += topple;
+                            gridNow[x][y+1][z][w] += topple;
+                            gridNow[x][y][z-1][w] += topple;
+                            gridNow[x][y][z+1][w] += topple;
+                            gridNow[x][y][z][w-1] += topple;
+                            gridNow[x][y][z][w+1] += topple;
+
+                            minX = min(minX, x-1);
+                            minY = min(minY, y-1);
+                            minZ = min(minZ, z-1);
+                            minW = min(minW, w-1);
+
+                            maxX = max(maxX, x+1);
+                            maxY = max(maxY, y+1);
+                            maxZ = max(maxZ, z+1);
+                            maxW = max(maxW, w+1);
+                            stillGoing = true;
+                        }
+                    }
                 }
             }
         }
@@ -191,18 +207,18 @@ void generate2(T totalToDrop, size_t radius, int colorIndex){
     size_t actualRadius = ((maxX-minX))/2;
     size_t actualSize = actualRadius*2+1;
     
-    size_t imgSize = actualSize*actualSize*4;
+    size_t imgSize = actualSize*actualSize*actualSize*actualSize*4;
     
     printf("Radius (sans center): %lu\n", actualRadius);
 
     BitmapHeader bmpHeader;
-    bmpHeader.bitmapWidth = actualSize;
-    bmpHeader.bitmapHeight = actualSize;
+    bmpHeader.bitmapWidth = actualSize*actualSize;
+    bmpHeader.bitmapHeight = actualSize*actualSize;
     bmpHeader.bitmapSize = sizeof(bmpHeader) + imgSize;
     bmpHeader.offset = sizeof(bmpHeader);
 
-    double greedyArea = 0;
-    double filledArea = 0;
+    double greedyContent = 0;
+    double filledContent = 0;
     double total = 0;
     double totals[QTY];
     for(int j = 0; j < QTY; j++){
@@ -211,52 +227,53 @@ void generate2(T totalToDrop, size_t radius, int colorIndex){
 
     uint8_t* bmpData = (uint8_t*)malloc(imgSize);
     size_t i = 0;
-    for(size_t y = minY; y <= maxY; y++){
-        for(size_t x = minX; x <= maxX; x++){
-            bmpData[i++] = color[colorIndex][gridNow[x][y]][2];
-            bmpData[i++] = color[colorIndex][gridNow[x][y]][1];
-            bmpData[i++] = color[colorIndex][gridNow[x][y]][0];
-            bmpData[i++] = 0;
-            filledArea += (gridNow[x][y] > 0);
-            if(gridNow[x][y] > 0 || ((gridNow[x-1][y] > 0) + (gridNow[x+1][y] > 0) + (gridNow[x][y-1] > 0) + (gridNow[x][y+1] > 0)) == 4 ){
-                greedyArea++;
-                total += gridNow[x][y];
-                for(int j = 0; j < QTY; j++){
-                    totals[j] += (gridNow[x][y] == j);
+    for(size_t w = minW; w <= maxW; w++){
+        for(size_t z = minZ; z <= maxZ; z++){
+            for(size_t y = minY; y <= maxY; y++){
+                for(size_t x = minX; x <= maxX; x++){
+                    bmpData[i++] = color[colorIndex][gridNow[x][y][z][w]][2];
+                    bmpData[i++] = color[colorIndex][gridNow[x][y][z][w]][1];
+                    bmpData[i++] = color[colorIndex][gridNow[x][y][z][w]][0];
+                    bmpData[i++] = 0;
+                    filledContent += (gridNow[x][y][z][w] > 0);
+                    if(gridNow[x][y][z][w] > 0 || ((gridNow[x-1][y][z][w] > 0) + (gridNow[x+1][y][z][w] > 0) + (gridNow[x][y-1][z][w] > 0) + (gridNow[x][y+1][z][w] > 0) + (gridNow[x][y][z-1][w] > 0) + (gridNow[x][y][z+1][w] > 0) + (gridNow[x][y][z][w-1] > 0) + (gridNow[x][y][z][w+1] > 0)) == 8 ){
+                        greedyContent++;
+                        total += gridNow[x][y][z][w];
+                        for(int j = 0; j < QTY; j++){
+                            totals[j] += (gridNow[x][y][z][w] == j);
+                        }
+                    }
                 }
             }
         }
     }
 
     double calcRadius = actualRadius+0.5;
-    // A=PI*R^2
-    // PI=A/(R^2)
-    printf("(Enclosed Area)/(Radius^2): %f\n", greedyArea / (calcRadius*calcRadius));
-    printf("(Non Empty Area)/(Radius^2): %f\n", filledArea / (calcRadius*calcRadius));
-    printf("Mean: %f\n", total/greedyArea);
+    printf("Mean: %f\n", total/greedyContent);
     for(int j = 0; j < QTY; j++){
-        printf("%d: %f%%\n", j, totals[j]/greedyArea*100);
+        printf("%d: %f%%\n", j, totals[j]/greedyContent*100);
     }
 
 
     ofstream file;
-    #ifdef SAND_8
-        #define PREFIX "sand8_"
-    #else
-        #define PREFIX "sand_"
-    #endif
-    const char* fileName = (PREFIX+to_string(totalToDrop)+".bmp").c_str();
+    #define PREFIX "sand4d_"
+    const char* fileName = (string("img/")+PREFIX+to_string(totalToDrop)+".bmp").c_str();
     file.open(fileName);
     file.write((char*)&bmpHeader, sizeof(bmpHeader));
     file.write((char*)bmpData, imgSize);
 
     free(bmpData);
 
-    for(size_t i = size; i > 0; ){
-        delete[] gridNow[--i];
+    /*for(size_t k = size; k > 0; ){
+        for(size_t j = size; j > 0; ){
+            for(size_t i = size; i > 0; ){
+                delete[] gridNow[k][j][--i];
+            }
+            delete[] gridNow[k][--j];
+        }
+        delete[] gridNow[--k];
     }
-
-    delete[] gridNow;
+    delete[] gridNow;*/
 
     printf("Bitmap %s created\n", fileName);
     
