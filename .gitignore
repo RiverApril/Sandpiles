@@ -6,8 +6,10 @@ sandpiles4d
 sandpilesnd
 
 # Generated images:
-sand_*.bmp
-sand8_*.bmp
+img/
 
 # Excel
 *.xlsx
+
+# Mac
+.DS_Store

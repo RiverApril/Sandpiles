@@ -29,7 +29,7 @@ struct __attribute__ ((packed)) BitmapHeader {
     uint32_t importantColors = 0;
 };
 
-const unsigned char color[2][8][3] = {{
+const unsigned char color[3][16][3] = {{
     {0x00, 0x00, 0x00}, 
     {0xFF, 0xFF, 0x00}, 
     {0x00, 0x00, 0xFF}, 
@@ -47,6 +47,34 @@ const unsigned char color[2][8][3] = {{
     {0x80, 0x00, 0x80}, 
     {0x80, 0xFF, 0xFF}, 
     {0xFF, 0x80, 0x80}
+},{
+    { 25,   7,  26}, // dark violett
+    {  4,   4,  73}, // blue 5
+    { 12,  44, 138}, // blue 3
+    { 57, 125, 209}, // blue 1
+    {211, 236, 248}, // lightest blue
+    {248, 201,  95}, // light yellow
+    {204, 128,   0}, // brown 0
+    {106,  52,   3}, // brown 2
+
+},{
+    { 66,  30,  15}, // brown 3
+    { 25,   7,  26}, // dark violett
+    {  9,   1,  47}, // darkest blue
+    {  4,   4,  73}, // blue 5
+    {  0,   7, 100}, // blue 4
+    { 12,  44, 138}, // blue 3
+    { 24,  82, 177}, // blue 2
+    { 57, 125, 209}, // blue 1
+    {134, 181, 229}, // blue 0
+    {211, 236, 248}, // lightest blue
+    {241, 233, 191}, // lightest yellow
+    {248, 201,  95}, // light yellow
+    {255, 170,   0}, // dirty yellow
+    {204, 128,   0}, // brown 0
+    {153,  87,   0}, // brown 1
+    {106,  52,   3}  // brown 2
+
 }};
 
 void generate1(unsigned long long totalToDrop, size_t radius, size_t colorIndex, size_t dims);
@@ -247,7 +275,7 @@ void generate2(T totalToDrop, size_t radius, size_t colorIndex, size_t dims){
 
     ofstream file;
     string s = "sand_" + to_string(dims) + "d";
-    const char* fileName = ("img/"+s+"_"+to_string(totalToDrop)+".bmp").c_str();
+    const char* fileName = ("img/"+s+"_"+to_string(totalToDrop)+"_c"+to_string(colorIndex)+".bmp").c_str();
     file.open(fileName);
     file.write((char*)&bmpHeader, sizeof(bmpHeader));
     file.write((char*)bmpData, imgSize);
